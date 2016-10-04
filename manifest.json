@@ -6,18 +6,18 @@
     "scripts": ["background.js"],
     "persistent": false
   },
-  "icons": { "128": "mail_128x128.png" },
-  "options_page": "options.html",
+  "icons": { "128": "note.png" },
+  // "options_page": "options.html",
   "permissions": [
     "tabs", "http://*/*", "https://*/*"
   ],
   "browser_action": {
-    "default_title": "Email posts",
-    "default_icon": "email_16x16.png"
+    "default_title": "Read Facebook group posts",
+    "default_icon": "note.png"
   },
   "content_scripts": [
       {
-        "matches": ["https://www.facebook.com/groups/*"],        
+        "matches": ["https://www.facebook.com/groups/*/*"],        
         "js": ["jquery-3.1.1.min.js"]
       }
     ],
