@@ -2,6 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+function toDataUrl(url, callback) {
+  var xhr = new XMLHttpRequest();
+  xhr.responseType = 'blob';
+  xhr.onload = function() {
+    var reader = new FileReader();
+    reader.onloadend = function() {
+      callback(reader.result);
+    }
+    reader.readAsDataURL(xhr.response);
+  };
+  xhr.open('GET', url);
+  xhr.send();
+}
+
 //Listen to the response of the content script
 chrome.runtime.onConnect.addListener(function(port) {
   var tab = port.sender.tab;
@@ -22,14 +36,21 @@ chrome.runtime.onConnect.addListener(function(port) {
         function( data ) {
           console.log(data);
           for (var i = 0; i < info.posts.length; i++) {
+            var img="";
+            
+            toDataUrl('http://equiposysistemas.com.ar/web/wp-content/uploads/2016/04/Admin-Hotel.jpg', function(base64Img) {
+              img=base64Img;              
+            });
+            
             $.get("http://localhost/wordpress/", { 
-              controller: "posts", 
-              method:"create_post",
-              status: "publish",
-              content: info.posts[i].description,
-              title: info.posts[i].description.substring(0,15)+'...',
+              controller: "core", 
+              method:"ux_publish_post",
+              post_status: "publish",
+              post_content: info.posts[i].description,
+              post_title: info.posts[i].description.substring(0,15)+'...',
               nonce: data.nonce,
-              json: "create_post"
+              json: "ux_publish_post",
+              post_image_attachment: img
             })
             .done(
               function(data) {
