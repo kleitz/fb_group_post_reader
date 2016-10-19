@@ -111,6 +111,4 @@ var additionalInfo = {
   "posts": posts
 };
 
-console.log(posts);
-
 chrome.runtime.connect().postMessage(additionalInfo);
