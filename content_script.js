@@ -8,6 +8,7 @@ function Content() {
 	this.link;
 	this.photo; //Research hoy to upload and get link
 	this.album = [];
+	this.images = [];
 }
 
 function Post() {
@@ -100,14 +101,13 @@ $('div._4-u2.mbm._5jmm._5pat._5v3q._4-u8').each(
 		}
 
 
-		new_post.content = new_content;
+		new_post.content = new_content;		
 		posts.push(new_post);
 	}
-);    
+);
 
 var additionalInfo = {
-  "title": document.title,
-  "selection": window.getSelection().toString(),
+  "title": document.title,  
   "posts": posts
 };
 

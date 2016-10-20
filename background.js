@@ -1,39 +1,6 @@
-// Copyright (c) 2012 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright (c) 2016 Equipos & Sistemas. All rights reserved.
 
-function convertFileToDataURLviaFileReader(url, callback) {
-  var xhr = new XMLHttpRequest();
-  xhr.responseType = 'blob';
-  xhr.onload = function() {
-    var reader = new FileReader();
-    reader.onloadend = function() {
-      callback(reader.result);
-    }
-    reader.readAsDataURL(xhr.response);
-  };
-  xhr.open('GET', url);
-  xhr.send();
-}
-
-function convertImgToDataURLviaCanvas(url, callback, outputFormat) {
-  var img = new Image();
-  img.crossOrigin = 'Anonymous';
-  img.onload = function() {
-    var canvas = document.createElement('CANVAS');
-    var ctx = canvas.getContext('2d');
-    var dataURL;
-    canvas.height = this.height;
-    canvas.width = this.width;
-    ctx.drawImage(this, 0, 0);
-    dataURL = canvas.toDataURL(outputFormat);
-    callback(dataURL);
-    canvas = null;
-  };
-  img.src = url;
-}
-
-function getDataUri(url, callback) {
+function getDataUri(post, url, callback) {
     var image = new Image();
 
     image.onload = function () {
@@ -44,7 +11,7 @@ function getDataUri(url, callback) {
         canvas.getContext('2d').drawImage(this, 0, 0);
 
         // Get raw image data
-        callback(canvas.toDataURL('image/png').replace(/^data:image\/(png|jpg);base64,/, ''));
+        callback(canvas.toDataURL('image/png').replace(/^data:image\/(png|jpg);base64,/, ''), post);
 
         // ... or get as Data URI
         //callback(canvas.toDataURL('image/png'));
@@ -52,72 +19,94 @@ function getDataUri(url, callback) {
     image.src = url;
 }
 
+// function sendToWordpress(post) {
+  
+// }
+
 //Listen to the response of the content script
 chrome.runtime.onConnect.addListener(function(port) {
-  var tab = port.sender.tab;
-
-  // This will get called by the content script we execute in
-  // the tab as a result of the user pressing the browser action.
+  var tab = port.sender.tab;  
+  // This will get called by the content script we execute in the tab as a result of the user pressing the browser action.
   port.onMessage.addListener(function(info) {
-    
-    var max_length = 1024;
-    var posts_text="POSTS: ";
-
-    if (info.selection.length > max_length)
-      info.selection = info.selection.substring(0, max_length);
     if(info.posts) {
-      info.post_quantity="Posts econtrados: "+info.posts.length;
       $.get("http://localhost/wordpress/", { json: "get_nonce", controller: "posts", method:"create_post" })
       .done(
-        function( data ) {
-          for (var i = 0; i < 1; i++) {
-            getDataUri('https://upload.wikimedia.org/wikipedia/commons/thumb/c/c2/Puriri_tree.jpg/1280px-Puriri_tree.jpg', function(base64Img) {
-              console.log(base64Img);
-              $.post("http://localhost/wordpress/", {
-                controller: "core", 
-                method:"ux_publish_post",
-                post_status: "publish",
-                post_content: info.posts[i].description,
-                post_title: info.posts[i].description.substring(0,15)+'...',
-                nonce: data.nonce,
-                json: "ux_publish_post",
-                post_image_attachment: base64Img
-              })
-              .done(
-                function(data) {
-                  console.log(data.id);
+        function(data) {            
+          //Promise
+          var convertImages = new Promise(function(resolve, reject) {
+            for (var i = 0; i < info.posts.length; i++) {
+              //do a thing, possibly async, then…              
+              if (info.posts[i].content.album.length>0) {
+                for (var j = 0; j < info.posts[i].content.album.length; j++) {
+                  var post=info.posts[i];
+                  getDataUri(post ,info.posts[i].content.album[j],
+                    function(img, post) {                        
+                      post.content.images.push(img);
+                      //console.log('images processed in '+ i + '/' + info.posts.length + ' posts');
+                    }
+                  );
                 }
-              )
-            });
-          }
+              }
+            }
+            
+            if (i==info.posts.length) {
+              resolve(info.posts);
+            }
+          });
+          convertImages.then(
+            function(posts){
+              console.log('waiting 3 seconds');
+              setTimeout(function(){
+                //do what you need here
+                for (var i = 0; i < posts.length; i++) {                  
+                  console.log(posts[i].content);
+                  // $.post("http://localhost/wordpress/", {
+                  //   //async: false,
+                  //   controller: "core", 
+                  //   method:"ux_publish_post",
+                  //   post_status: "publish",
+                  //   post_content: posts[i].description,
+                  //   post_title: posts[i].description.substring(0,15)+'...',
+                  //   nonce: data.nonce,
+                  //   json: "ux_publish_post",
+                  //   //post_images: JSON.stringify(posts[i].content.images),
+                  //   images_quantity: posts[i].content.images.length
+                  // })
+                  // .done(
+                  //   function(data) {
+                  //     console.log('Post sent to wordpress');
+                  //   }
+                  // )
+                }
+              }, 3000);
+            },
+            function(){
+              console.log('error');
+            }
+          );
         }
       );
     }
-    else{
-      info.post_quantity="Ningún post";
-    }    
-    //executeMailto(tab.id, info.title, tab.url, posts_text);
+    else {
+      info.post_quantity="Ningún post econtrado";
+    }
   });
 });
 
-// If it is possible inject the content script if not send the email
 // Called when the user clicks on the browser action icon.
 chrome.browserAction.onClicked.addListener(function(tab) {  
-  // We can only inject scripts to find the title on pages loaded with http
-  // and https so for all other pages, we don't ask for the title.
-  if (tab.url.indexOf("https://www.facebook.com/groups/") != -1) {
-    //executeMailto(tab.id, "", tab.url, "");
+  // We only inject scripts to Facebook groups
+  if (tab.url.indexOf("https://www.facebook.com/groups/") != -1) {    
     console.log("injecting content_script ");
     chrome.tabs.executeScript(null, {file: "content_script.js"});
   }  
 });
-
+// Called when the user change active tab
 chrome.tabs.onUpdated.addListener( function (tabId, changeInfo, tab) {
   if (changeInfo.status == 'complete' && tab.active) {
     if(tab.url.indexOf("https://www.facebook.com/groups/") == -1){
       console.log("disabling extension");
       chrome.browserAction.disable(tab.id);
-      //chrome.browserAction.setIcon({path: "note-grey.png"});
     }
   }
 })
